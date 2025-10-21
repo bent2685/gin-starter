@@ -3,28 +3,40 @@ package config
 import (
 	"log"
 	"strings"
-	"time"
 
 	"github.com/spf13/viper"
 )
 
-// Config 保存所有应用配置
+// AppConfig 全局配置实例
+var AppConfig *Config
+
+// Config 应用配置结构体
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
-	Log      LogConfig      `mapstructure:"log"`
 	Database DatabaseConfig `mapstructure:"database"`
+	Log      LogConfig      `mapstructure:"log"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
 }
 
-// ServerConfig 保存服务器相关配置
+// ServerConfig 服务器配置
 type ServerConfig struct {
-	Port        string        `mapstructure:"port"`
-	Host        string        `mapstructure:"host"`
-	Environment string        `mapstructure:"environment"`
-	Timeout     time.Duration `mapstructure:"timeout"`
-	EnableCORS  bool          `mapstructure:"enable_cors"`
+	Host        string `mapstructure:"host"`
+	Port        string `mapstructure:"port"`
+	Environment string `mapstructure:"environment"`
 }
 
-// LogConfig 保存日志相关配置
+// DatabaseConfig 数据库配置
+type DatabaseConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	Name     string `mapstructure:"name"`
+	SSLMode  string `mapstructure:"sslmode"`
+	Timezone string `mapstructure:"timezone"`
+}
+
+// LogConfig 日志配置
 type LogConfig struct {
 	Enabled         bool   `mapstructure:"enabled"`
 	Level           string `mapstructure:"level"`
@@ -38,93 +50,120 @@ type LogConfig struct {
 	TimestampFormat string `mapstructure:"timestamp_format"`
 }
 
-// DatabaseConfig 保存数据库相关配置
-type DatabaseConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     string `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	Name     string `mapstructure:"name"`
-	SSLMode  string `mapstructure:"sslmode"`
-	TimeZone string `mapstructure:"timezone"`
+// JWTConfig JWT配置
+type JWTConfig struct {
+	Secret string `mapstructure:"secret"`
 }
 
-// AppConfig 是全局配置实例
-var AppConfig *Config
-
-// Init 初始化应用配置
+// Init 初始化配置
 func Init(configPath string) {
-	v := viper.New()
-
-	// 1. 设置默认值
-	v.SetDefault("server.port", "7070")
-	v.SetDefault("server.host", "0.0.0.0")
-	v.SetDefault("server.environment", "development")
-	v.SetDefault("server.timeout", "30s")
-	v.SetDefault("server.enable_cors", true)
-	v.SetDefault("log.level", "info")
-	v.SetDefault("log.file", "./logs/server.log")
-	v.SetDefault("log.format", "text")
-	v.SetDefault("log.max_size", 100)
-	v.SetDefault("log.max_backups", 3)
-	v.SetDefault("log.max_age", 7)
-	v.SetDefault("log.compress", true)
-	v.SetDefault("log.enable_colors", true)
-	v.SetDefault("log.timestamp_format", "2006-01-02 15:04:05")
-
-	// 数据库默认配置
-	v.SetDefault("database.host", "localhost")
-	v.SetDefault("database.port", "5432")
-	v.SetDefault("database.user", "postgres")
-	v.SetDefault("database.password", "postgres")
-	v.SetDefault("database.name", "gin_starter")
-	v.SetDefault("database.sslmode", "disable")
-	v.SetDefault("database.timezone", "Asia/Shanghai")
-
-	// 2. 设置配置文件
-	v.SetConfigName("config")
-	v.SetConfigType("yaml")
+	// 设置配置文件名和路径
+	viper.SetConfigName("config")
 	if configPath != "" {
-		v.AddConfigPath(configPath)
+		viper.AddConfigPath(configPath)
 	} else {
-		v.AddConfigPath(".")
-		v.AddConfigPath("./conf")
+		viper.AddConfigPath(".")
 	}
 
-	// 3. 绑定环境变量
-	v.SetEnvPrefix("STARTER")
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.AutomaticEnv()
+	// 设置环境变量前缀
+	viper.SetEnvPrefix("STARTER")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
-	// 4. 读取和解析配置
-	if err := v.ReadInConfig(); err != nil {
+	// 读取配置文件
+	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.Printf("未找到配置文件，查找路径: %v", v.ConfigFileUsed())
-			log.Printf("当前工作目录和查找的配置路径:")
-			for _, path := range []string{".", "./conf"} {
-				log.Printf("  - %s", path)
-			}
-			log.Println("将使用默认值和环境变量")
+			log.Println("配置文件未找到，使用默认配置")
 		} else {
-			log.Fatalf("无法读取配置文件: %v", err)
+			log.Fatalf("配置文件读取失败: %v", err)
 		}
 	} else {
-		log.Printf("配置文件加载成功: %s", v.ConfigFileUsed())
+		log.Printf("配置文件加载成功: %s", viper.ConfigFileUsed())
 	}
 
-	if err := v.Unmarshal(&AppConfig); err != nil {
-		log.Fatalf("无法解析配置: %v", err)
+	// 设置默认值
+	setDefaults()
+
+	// 绑定环境变量
+	bindEnvs()
+
+	// 解析配置
+	AppConfig = &Config{}
+	if err := viper.Unmarshal(AppConfig); err != nil {
+		log.Fatalf("配置解析失败: %v", err)
 	}
 
 	log.Println("配置加载成功")
 }
 
-// IsProduction 检查是否为生产环境
-func (c *Config) IsProduction() bool {
-	return c.Server.Environment == "production"
+// setDefaults 设置默认配置值
+func setDefaults() {
+	// 服务器配置默认值
+	viper.SetDefault("server.host", "0.0.0.0")
+	viper.SetDefault("server.port", "7070")
+	viper.SetDefault("server.environment", "development")
+
+	// 数据库配置默认值
+	viper.SetDefault("database.host", "localhost")
+	viper.SetDefault("database.port", "5432")
+	viper.SetDefault("database.user", "postgres")
+	viper.SetDefault("database.password", "postgres")
+	viper.SetDefault("database.name", "gin_starter")
+	viper.SetDefault("database.sslmode", "disable")
+	viper.SetDefault("database.timezone", "Asia/Shanghai")
+
+	// 日志配置默认值
+	viper.SetDefault("log.enabled", true)
+	viper.SetDefault("log.level", "info")
+	viper.SetDefault("log.file", "./logs/server.log")
+	viper.SetDefault("log.format", "text")
+	viper.SetDefault("log.max_size", 100)
+	viper.SetDefault("log.max_backups", 3)
+	viper.SetDefault("log.max_age", 7)
+	viper.SetDefault("log.compress", true)
+	viper.SetDefault("log.enable_colors", true)
+	viper.SetDefault("log.timestamp_format", "2006-01-02 15:04:05")
+
+	// JWT配置默认值
+	viper.SetDefault("jwt.secret", "gin-starter-secret-key")
 }
 
-// IsDevelopment 检查是否为开发环境
-func (c *Config) IsDevelopment() bool {
-	return c.Server.Environment == "development"
+// bindEnvs 绑定环境变量
+func bindEnvs() {
+	// 服务器配置环境变量绑定
+	viper.BindEnv("server.host", "STARTER_SERVER_HOST")
+	viper.BindEnv("server.port", "STARTER_SERVER_PORT")
+	viper.BindEnv("server.environment", "STARTER_SERVER_ENVIRONMENT")
+
+	// 数据库配置环境变量绑定
+	viper.BindEnv("database.host", "STARTER_DATABASE_HOST")
+	viper.BindEnv("database.port", "STARTER_DATABASE_PORT")
+	viper.BindEnv("database.user", "STARTER_DATABASE_USER")
+	viper.BindEnv("database.password", "STARTER_DATABASE_PASSWORD")
+	viper.BindEnv("database.name", "STARTER_DATABASE_NAME")
+	viper.BindEnv("database.sslmode", "STARTER_DATABASE_SSLMODE")
+	viper.BindEnv("database.timezone", "STARTER_DATABASE_TIMEZONE")
+
+	// 日志配置环境变量绑定
+	viper.BindEnv("log.enabled", "STARTER_LOG_ENABLED")
+	viper.BindEnv("log.level", "STARTER_LOG_LEVEL")
+	viper.BindEnv("log.file", "STARTER_LOG_FILE")
+	viper.BindEnv("log.format", "STARTER_LOG_FORMAT")
+	viper.BindEnv("log.max_size", "STARTER_LOG_MAX_SIZE")
+	viper.BindEnv("log.max_backups", "STARTER_LOG_MAX_BACKUPS")
+	viper.BindEnv("log.max_age", "STARTER_LOG_MAX_AGE")
+	viper.BindEnv("log.compress", "STARTER_LOG_COMPRESS")
+	viper.BindEnv("log.enable_colors", "STARTER_LOG_ENABLE_COLORS")
+	viper.BindEnv("log.timestamp_format", "STARTER_LOG_TIMESTAMP_FORMAT")
+
+	// JWT配置环境变量绑定
+	viper.BindEnv("jwt.secret", "STARTER_JWT_SECRET")
+}
+
+// GetJWTSecret 获取JWT密钥
+func GetJWTSecret() string {
+	if AppConfig != nil {
+		return AppConfig.JWT.Secret
+	}
+	return "gin-starter-secret-key"
 }

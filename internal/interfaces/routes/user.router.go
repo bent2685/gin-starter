@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"gin-starter/internal/application/services"
 	"gin-starter/internal/interfaces/handlers"
 
 	"github.com/gin-gonic/gin"
@@ -12,8 +13,14 @@ type UserRouter struct {
 
 // NewUserRouter 创建用户路由实例
 func NewUserRouter() *UserRouter {
+	// 创建用户服务
+	userService := services.NewUserService()
+
+	// 创建用户处理器
+	userHandler := handlers.NewUserHandler(userService)
+
 	return &UserRouter{
-		userHandler: handlers.NewUserHandler(),
+		userHandler: userHandler,
 	}
 }
 

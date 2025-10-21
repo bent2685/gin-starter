@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gin-starter/config"
+	"gin-starter/internal/application/services/rbac"
 	"gin-starter/internal/infra/database"
 	"gin-starter/internal/interfaces/routes"
 	"gin-starter/internal/interfaces/validators"
@@ -54,8 +55,27 @@ func main() {
 	if runMigration {
 		utils.Log.Info("执行数据库迁移...")
 		database.AutoMigrate()
+
+		// 初始化RBAC服务（仅用于添加示例数据）
+		rbacService, err := rbac.NewRBACService()
+		if err != nil {
+			utils.Log.Fatalf("RBAC服务初始化失败: %v", err)
+		}
+
+		// 添加一些默认策略示例
+		rbacService.AddPolicy("admin", "/users/*", "*")
+		rbacService.AddPolicy("user", "/users/:id", "GET")
+		rbacService.AddRoleForUser("1", "admin")
+		rbacService.SavePolicy()
+
 		utils.Log.Info("数据库迁移完成")
 		return
+	}
+
+	// 初始化RBAC服务
+	rbacService, err := rbac.NewRBACService()
+	if err != nil {
+		utils.Log.Fatalf("RBAC服务初始化失败: %v", err)
 	}
 
 	// 创建Gin引擎
@@ -66,7 +86,9 @@ func main() {
 
 	routerManager := routes.NewRouterManager()
 	routerManager.RegisterRouter(routes.NewTestRouter())
-	routerManager.RegisterRouter(routes.NewUserRouter()) // 注册用户路由
+	routerManager.RegisterRouter(routes.NewUserRouter())                 // 注册用户路由
+	routerManager.RegisterRouter(routes.NewRBACRouter(rbacService))      // 注册RBAC路由
+	routerManager.RegisterRouter(routes.NewProtectedRouter(rbacService)) // 注册受保护路由
 	routerManager.SetupRoutes(r)
 
 	addr := fmt.Sprintf("%s:%s", config.AppConfig.Server.Host, config.AppConfig.Server.Port)

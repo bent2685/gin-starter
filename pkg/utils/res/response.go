@@ -82,10 +82,27 @@ func NewBusinessError(code int, message string) *BusinessError {
 
 // 常用业务异常
 var (
+	// 通用错误
 	ErrInvalidParam   = NewBusinessError(400010, "参数错误")
 	ErrUnauthorized   = NewBusinessError(400001, "未授权")
 	ErrForbidden      = NewBusinessError(400003, "禁止访问")
 	ErrNotFound       = NewBusinessError(400004, "资源不存在")
-	ErrWps            = NewBusinessError(500010, "WPS异常")
 	ErrInternalServer = NewBusinessError(500001, "服务器内部错误")
+
+	// 认证相关错误
+	ErrInvalidCredentials = NewBusinessError(400002, "用户名或密码错误")
+	ErrTokenExpired       = NewBusinessError(400005, "Token已过期")
+	ErrInvalidToken       = NewBusinessError(400006, "无效的Token")
+	ErrTokenRequired      = NewBusinessError(400007, "未提供认证信息")
+	ErrTokenFormat        = NewBusinessError(400008, "认证信息格式错误")
+
+	// 用户相关错误
+	ErrUserNotFound      = NewBusinessError(400101, "用户不存在")
+	ErrUserAlreadyExists = NewBusinessError(400102, "用户已存在")
+	ErrInvalidPassword   = NewBusinessError(400103, "密码错误")
+	ErrEmailAlreadyUsed  = NewBusinessError(400104, "邮箱已被使用")
+	ErrUsernameTaken     = NewBusinessError(400105, "用户名已存在")
+
+	// 权限相关错误
+	ErrInsufficientPermissions = NewBusinessError(400009, "权限不足")
 )

@@ -1,10 +1,11 @@
 package services
 
 import (
-	"errors"
 	"gin-starter/internal/domain/models"
 	"gin-starter/internal/infra/database"
+	"gin-starter/pkg/utils/res"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -21,119 +22,182 @@ func NewUserService() *UserService {
 }
 
 // CreateUser 创建用户
-func (s *UserService) CreateUser(user *models.User) error {
-	// 验证用户数据
-	if err := user.Validate(); err != nil {
-		return err
-	}
-
+func (s *UserService) CreateUser(username, email, password string) (*models.User, error) {
 	// 检查用户名是否已存在
-	if _, err := s.GetUserByUsername(user.Username); err == nil {
-		return errors.New("用户名已存在")
+	var existingUser models.User
+	if err := s.db.Where("username = ?", username).First(&existingUser).Error; err == nil {
+		return nil, res.ErrUsernameTaken
 	}
 
 	// 检查邮箱是否已存在
-	if _, err := s.GetUserByEmail(user.Email); err == nil {
-		return errors.New("邮箱已存在")
+	if err := s.db.Where("email = ?", email).First(&existingUser).Error; err == nil {
+		return nil, res.ErrEmailAlreadyUsed
 	}
 
-	// 创建用户
-	return s.db.Create(user).Error
+	// 对密码进行哈希处理
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	// 创建用户对象
+	user := &models.User{
+		Username: username,
+		Email:    email,
+		Password: string(hashedPassword),
+		IsActive: true, // 默认激活状态
+	}
+
+	// 保存到数据库
+	if err := s.db.Create(user).Error; err != nil {
+		return nil, err
+	}
+
+	// 清除密码字段再返回
+	user.Password = ""
+
+	return user, nil
+}
+
+// GetAllUsers 获取所有用户
+func (s *UserService) GetAllUsers() ([]*models.User, error) {
+	var users []*models.User
+	if err := s.db.Find(&users).Error; err != nil {
+		return nil, err
+	}
+
+	// 清除密码字段
+	for _, user := range users {
+		user.Password = ""
+	}
+
+	return users, nil
 }
 
 // GetUserByID 根据ID获取用户
 func (s *UserService) GetUserByID(id uint) (*models.User, error) {
 	var user models.User
-	err := s.db.First(&user, id).Error
-	if err != nil {
-		return nil, err
+	if err := s.db.First(&user, id).Error; err != nil {
+		return nil, res.ErrUserNotFound
 	}
-	return &user, nil
-}
 
-// GetUserByUsername 根据用户名获取用户
-func (s *UserService) GetUserByUsername(username string) (*models.User, error) {
-	var user models.User
-	err := s.db.Where("username = ?", username).First(&user).Error
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
+	// 清除密码字段
+	user.Password = ""
 
-// GetAllUsers 获取所有用户
-func (s *UserService) GetAllUsers() ([]models.User, error) {
-	var users []models.User
-	err := s.db.Find(&users).Error
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
+	return &user, nil
 }
 
 // UpdateUser 更新用户
-func (s *UserService) UpdateUser(user *models.User) error {
-	// 验证用户数据
-	if err := user.Validate(); err != nil {
-		return err
+func (s *UserService) UpdateUser(id uint, username, email string) (*models.User, error) {
+	var user models.User
+	if err := s.db.First(&user, id).Error; err != nil {
+		return nil, res.ErrUserNotFound
 	}
 
-	return s.db.Save(user).Error
+	// 检查用户名是否已被其他用户使用
+	var existingUser models.User
+	if err := s.db.Where("username = ? AND id != ?", username, id).First(&existingUser).Error; err == nil {
+		return nil, res.ErrUsernameTaken
+	}
+
+	// 检查邮箱是否已被其他用户使用
+	if err := s.db.Where("email = ? AND id != ?", email, id).First(&existingUser).Error; err == nil {
+		return nil, res.ErrEmailAlreadyUsed
+	}
+
+	// 更新用户信息
+	user.Username = username
+	user.Email = email
+
+	if err := s.db.Save(&user).Error; err != nil {
+		return nil, err
+	}
+
+	// 清除密码字段再返回
+	user.Password = ""
+
+	return &user, nil
 }
 
 // DeleteUser 删除用户
 func (s *UserService) DeleteUser(id uint) error {
-	return s.db.Delete(&models.User{}, id).Error
-}
-
-// GetUserByEmail 根据邮箱获取用户
-func (s *UserService) GetUserByEmail(email string) (*models.User, error) {
-	var user models.User
-	err := s.db.Where("email = ?", email).First(&user).Error
-	if err != nil {
-		return nil, err
+	// 软删除用户
+	if err := s.db.Delete(&models.User{}, id).Error; err != nil {
+		return err
 	}
-	return &user, nil
+
+	return nil
 }
 
 // ActivateUser 激活用户
 func (s *UserService) ActivateUser(id uint) error {
-	user, err := s.GetUserByID(id)
-	if err != nil {
+	var user models.User
+	if err := s.db.First(&user, id).Error; err != nil {
+		return res.ErrUserNotFound
+	}
+
+	user.IsActive = true
+
+	if err := s.db.Save(&user).Error; err != nil {
 		return err
 	}
 
-	user.Activate()
-	return s.UpdateUser(user)
+	return nil
 }
 
 // DeactivateUser 停用用户
 func (s *UserService) DeactivateUser(id uint) error {
-	user, err := s.GetUserByID(id)
-	if err != nil {
+	var user models.User
+	if err := s.db.First(&user, id).Error; err != nil {
+		return res.ErrUserNotFound
+	}
+
+	user.IsActive = false
+
+	if err := s.db.Save(&user).Error; err != nil {
 		return err
 	}
 
-	user.Deactivate()
-	return s.UpdateUser(user)
+	return nil
 }
 
-// ChangeUserEmail 更改用户邮箱
-func (s *UserService) ChangeUserEmail(id uint, email string) error {
-	user, err := s.GetUserByID(id)
-	if err != nil {
+// ChangeEmail 修改邮箱
+func (s *UserService) ChangeEmail(id uint, email string) error {
+	var user models.User
+	if err := s.db.First(&user, id).Error; err != nil {
+		return res.ErrUserNotFound
+	}
+
+	// 检查邮箱是否已被其他用户使用
+	var existingUser models.User
+	if err := s.db.Where("email = ? AND id != ?", email, id).First(&existingUser).Error; err == nil {
+		return res.ErrEmailAlreadyUsed
+	}
+
+	user.Email = email
+
+	if err := s.db.Save(&user).Error; err != nil {
 		return err
 	}
 
-	if err := user.ChangeEmail(email); err != nil {
-		return err
+	return nil
+}
+
+// AuthenticateUser 验证用户凭据
+func (s *UserService) AuthenticateUser(username, password string) (*models.User, error) {
+	var user models.User
+	// 根据用户名查找用户
+	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
+		return nil, res.ErrInvalidCredentials
 	}
 
-	// 检查邮箱是否已存在
-	existingUser, err := s.GetUserByEmail(email)
-	if err == nil && existingUser.ID != id {
-		return errors.New("邮箱已存在")
+	// 验证密码
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return nil, res.ErrInvalidCredentials
 	}
 
-	return s.UpdateUser(user)
+	// 清除密码字段再返回
+	user.Password = ""
+
+	return &user, nil
 }

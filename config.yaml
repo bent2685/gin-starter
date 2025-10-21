@@ -31,3 +31,7 @@ database:
   name: "gin-starter" # 数据库名称
   sslmode: "disable" # SSL模式
   timezone: "Asia/Shanghai" # 时区
+
+# JWT配置
+jwt:
+  secret: "gin-starter-secret-key" # JWT密钥，请在生产环境中使用强密码

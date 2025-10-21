@@ -8,7 +8,53 @@
 - 配置管理 (Viper)
 - 结构化日志系统 (Logrus + Lumberjack)
 - 数据库集成 (GORM + PostgreSQL)
+- 权限控制 (Casbin RBAC)
 - 模块化设计
+
+## 权限控制 (Casbin RBAC)
+
+本项目集成了 Casbin 权限控制框架，支持基于角色的访问控制（RBAC）。
+
+### 特性
+
+- 支持 RESTful 资源权限控制
+- 支持用户角色管理
+- 支持策略持久化到数据库
+- 提供权限中间件
+
+### 使用方法
+
+```go
+// 在路由中使用权限中间件
+import "gin-starter/internal/middleware"
+
+// 基于策略的权限控制
+r.Use(middleware.AuthorizationMiddleware(rbacService))
+
+// 基于角色的权限控制
+r.Use(middleware.RoleMiddleware(rbacService, "admin"))
+```
+
+### 策略管理
+
+通过 API 管理权限策略:
+
+```bash
+# 添加策略
+curl -X POST http://localhost:7070/rbac/policy \
+  -H "Content-Type: application/json" \
+  -d '{"sub":"admin","obj":"/users/*","act":"*"}'
+
+# 为用户添加角色
+curl -X POST http://localhost:7070/rbac/role \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":1,"role":"admin"}'
+
+# 验证权限
+curl -X POST http://localhost:7070/rbac/enforce \
+  -H "Content-Type: application/json" \
+  -d '{"sub":"1","obj":"/users","act":"GET"}'
+```
 
 ## 数据库集成
 
