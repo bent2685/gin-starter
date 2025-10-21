@@ -10,8 +10,9 @@ import (
 
 // Config 保存所有应用配置
 type Config struct {
-	Server ServerConfig `mapstructure:"server"`
-	Log    LogConfig    `mapstructure:"log"`
+	Server   ServerConfig   `mapstructure:"server"`
+	Log      LogConfig      `mapstructure:"log"`
+	Database DatabaseConfig `mapstructure:"database"`
 }
 
 // ServerConfig 保存服务器相关配置
@@ -37,6 +38,17 @@ type LogConfig struct {
 	TimestampFormat string `mapstructure:"timestamp_format"`
 }
 
+// DatabaseConfig 保存数据库相关配置
+type DatabaseConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	Name     string `mapstructure:"name"`
+	SSLMode  string `mapstructure:"sslmode"`
+	TimeZone string `mapstructure:"timezone"`
+}
+
 // AppConfig 是全局配置实例
 var AppConfig *Config
 
@@ -59,6 +71,15 @@ func Init(configPath string) {
 	v.SetDefault("log.compress", true)
 	v.SetDefault("log.enable_colors", true)
 	v.SetDefault("log.timestamp_format", "2006-01-02 15:04:05")
+
+	// 数据库默认配置
+	v.SetDefault("database.host", "localhost")
+	v.SetDefault("database.port", "5432")
+	v.SetDefault("database.user", "postgres")
+	v.SetDefault("database.password", "postgres")
+	v.SetDefault("database.name", "gin_starter")
+	v.SetDefault("database.sslmode", "disable")
+	v.SetDefault("database.timezone", "Asia/Shanghai")
 
 	// 2. 设置配置文件
 	v.SetConfigName("config")

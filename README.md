@@ -7,7 +7,63 @@
 - 基于 Gin 框架的高性能 Web 服务
 - 配置管理 (Viper)
 - 结构化日志系统 (Logrus + Lumberjack)
+- 数据库集成 (GORM + PostgreSQL)
 - 模块化设计
+
+## 数据库集成
+
+本项目集成了 GORM ORM 框架和 PostgreSQL 数据库。
+
+### 配置
+
+数据库配置可以通过 `config.yaml` 文件进行配置:
+
+```yaml
+database:
+  host: "localhost"              # 数据库主机地址
+  port: "5432"                   # 数据库端口
+  user: "postgres"               # 数据库用户名
+  password: "postgres"           # 数据库密码
+  name: "gin_starter"            # 数据库名称
+  sslmode: "disable"             # SSL模式
+  timezone: "Asia/Shanghai"      # 时区
+```
+
+或者通过环境变量配置:
+
+```bash
+STARTER_DATABASE_HOST=localhost
+STARTER_DATABASE_PORT=5432
+STARTER_DATABASE_USER=postgres
+STARTER_DATABASE_PASSWORD=postgres
+STARTER_DATABASE_NAME=gin_starter
+STARTER_DATABASE_SSLMODE=disable
+STARTER_DATABASE_TIMEZONE=Asia/Shanghai
+```
+
+### 数据库迁移
+
+项目支持自动数据库迁移功能:
+
+```bash
+# 执行数据库迁移
+go run main.go migrate
+```
+
+### 使用方法
+
+在代码中使用数据库:
+
+```go
+import "gin-starter/internal/infra/database"
+
+// 获取数据库实例
+db := database.GetDB()
+
+// 使用 GORM 进行数据库操作
+var user User
+db.First(&user, 1)
+```
 
 ## 日志系统
 

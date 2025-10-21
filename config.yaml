@@ -3,21 +3,31 @@
 
 # 服务器配置
 server:
-  port: "7070"                    # 服务端口
-  host: "0.0.0.0"                # 监听地址
-  environment: "development"       # 环境: development, production, test
-  timeout: "30s"                  # 请求超时时间
-  enable_cors: true               # 是否启用CORS
+  port: "7070" # 服务端口
+  host: "0.0.0.0" # 监听地址
+  environment: "development" # 环境: development, production, test
+  timeout: "30s" # 请求超时时间
+  enable_cors: true # 是否启用CORS
 
 # 日志配置
 log:
-  enabled: true                  # 是否启用日志文件输出
-  level: "info"                  # 日志级别: debug, info, warn, error, fatal, panic, trace
-  file: "./logs/server.log"      # 日志文件路径
-  format: "text"                 # 日志格式: text, json
-  max_size: 100                  # 日志文件最大大小(MB)
-  max_backups: 3                 # 保留的旧日志文件最大数量
-  max_age: 7                     # 保留旧日志文件的最大天数
-  compress: true                 # 是否压缩旧日志文件
-  enable_colors: true            # 是否启用控制台颜色输出
-  timestamp_format: "2006-01-02 15:04:05"  # 时间戳格式
+  enabled: true # 是否启用日志文件输出
+  level: "info" # 日志级别: debug, info, warn, error, fatal, panic, trace
+  file: "./logs/server.log" # 日志文件路径
+  format: "text" # 日志格式: text, json
+  max_size: 100 # 日志文件最大大小(MB)
+  max_backups: 3 # 保留的旧日志文件最大数量
+  max_age: 7 # 保留旧日志文件的最大天数
+  compress: true # 是否压缩旧日志文件
+  enable_colors: true # 是否启用控制台颜色输出
+  timestamp_format: "2006-01-02 15:04:05" # 时间戳格式
+
+# 数据库配置
+database:
+  host: "localhost" # 数据库主机地址
+  port: "5432" # 数据库端口
+  user: "root" # 数据库用户名
+  password: "root" # 数据库密码
+  name: "gin-starter" # 数据库名称
+  sslmode: "disable" # SSL模式
+  timezone: "Asia/Shanghai" # 时区

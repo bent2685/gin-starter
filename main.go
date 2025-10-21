@@ -3,15 +3,28 @@ package main
 import (
 	"fmt"
 	"gin-starter/config"
+	"gin-starter/internal/infra/database"
 	"gin-starter/internal/interfaces/routes"
+	"gin-starter/internal/interfaces/validators"
 	"gin-starter/internal/middleware"
 	"gin-starter/pkg/utils"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// 检查是否有迁移参数
+	args := os.Args[1:]
+	runMigration := false
+	for _, arg := range args {
+		if arg == "migrate" {
+			runMigration = true
+			break
+		}
+	}
+
 	// 初始化配置
 	config.Init("")
 
@@ -22,6 +35,9 @@ func main() {
 		gin.SetMode(gin.DebugMode)
 	}
 
+	// 注册自定义验证器
+	validators.RegisterCustomValidators()
+
 	// 初始化日志系统
 	if err := utils.SetupLogging(config.AppConfig.Log); err != nil {
 		utils.Log.Fatalf("日志系统初始化失败: %v", err)
@@ -29,6 +45,18 @@ func main() {
 
 	// 记录启动日志
 	utils.Log.Info("服务启动中...")
+
+	// 初始化数据库
+	database.InitDatabase()
+	defer database.Close()
+
+	// 如果是迁移模式，执行迁移后退出
+	if runMigration {
+		utils.Log.Info("执行数据库迁移...")
+		database.AutoMigrate()
+		utils.Log.Info("数据库迁移完成")
+		return
+	}
 
 	// 创建Gin引擎
 	r := gin.New()
@@ -38,6 +66,7 @@ func main() {
 
 	routerManager := routes.NewRouterManager()
 	routerManager.RegisterRouter(routes.NewTestRouter())
+	routerManager.RegisterRouter(routes.NewUserRouter()) // 注册用户路由
 	routerManager.SetupRoutes(r)
 
 	addr := fmt.Sprintf("%s:%s", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
