@@ -19,6 +19,8 @@
 
 - 支持 RESTful 资源权限控制
 - 支持用户角色管理
+- 支持部门权限管理
+- 支持 super_admin 超级管理员角色（可访问所有资源）
 - 支持策略持久化到数据库
 - 提供权限中间件
 
@@ -33,6 +35,9 @@ r.Use(middleware.AuthorizationMiddleware(rbacService))
 
 // 基于角色的权限控制
 r.Use(middleware.RoleMiddleware(rbacService, "admin"))
+
+// 基于部门的权限控制
+r.Use(middleware.DepartmentMiddleware(rbacService, "IT"))
 ```
 
 ### 策略管理
@@ -50,11 +55,43 @@ curl -X POST http://localhost:7070/rbac/role \
   -H "Content-Type: application/json" \
   -d '{"user_id":1,"role":"admin"}'
 
+# 为用户添加部门
+curl -X POST http://localhost:7070/rbac/department \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":1,"department":"IT"}'
+
 # 验证权限
 curl -X POST http://localhost:7070/rbac/enforce \
   -H "Content-Type: application/json" \
   -d '{"sub":"1","obj":"/users","act":"GET"}'
 ```
+
+### Super Admin 超级管理员
+
+系统支持 super_admin 超级管理员角色，拥有访问所有资源的权限。要创建超级管理员：
+
+```bash
+# 1. 创建用户
+curl -X POST http://localhost:7070/users \
+  -H "Content-Type: application/json" \
+  -d '{"username":"superadmin","email":"admin@example.com","password":"password123"}'
+
+# 2. 为用户分配 super_admin 角色
+curl -X POST http://localhost:7070/rbac/role \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":1,"role":"super_admin"}'
+
+# 3. 添加 super_admin 权限策略（可选，用于支持通配符权限）
+curl -X POST http://localhost:7070/rbac/policy \
+  -H "Content-Type: application/json" \
+  -d '{"sub":"super_admin","obj":"*","act":"*"}'
+```
+
+超级管理员可以访问所有受保护的资源，包括基于角色和部门的资源。权限验证通过 Casbin 策略进行，而不是硬编码在代码中。
+
+### 部门权限
+
+系统支持基于部门的权限控制。用户可以属于一个或多个部门，每个部门可以有不同的权限策略。
 
 ## 数据库集成
 

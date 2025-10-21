@@ -44,19 +44,100 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// RoleMiddleware 角色中间件（基于角色的访问控制）
-func RoleMiddleware(rbacService *rbac.RBACService, requiredRole string) gin.HandlerFunc {
+// AuthorizationMiddleware 基于策略的权限中间件
+func AuthorizationMiddleware(rbacService *rbac.RBACService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 从上下文中获取用户ID
-		userID := c.GetHeader("X-User-ID")
-		if userID == "" {
-			userID = "anonymous"
+		// 从上下文中获取用户信息
+		userID, exists := c.Get("user_id")
+		if !exists {
+			res.ErrUnauthorized.ThrowWithMessage(c, "用户未认证")
+			return
+		}
+
+		// 构造资源和操作
+		resource := c.Request.URL.Path
+		action := c.Request.Method
+
+		// 首先检查用户是否具有super_admin权限（通过Casbin策略验证）
+		allowed, err := rbacService.Enforce(rbac.GetUserID(userID.(uint)), "*", "*")
+		if err != nil {
+			res.ErrInternalServer.ThrowWithMessage(c, "权限验证失败")
+			return
+		}
+
+		// 如果用户具有super_admin权限，允许访问所有资源
+		if allowed {
+			c.Next()
+			return
 		}
 
 		// 获取用户的角色
-		roles, err := rbacService.GetRolesForUser(userID)
+		roles, err := rbacService.GetRolesForUser(rbac.GetUserID(userID.(uint)))
 		if err != nil {
-			res.ErrForbidden.ThrowWithMessage(c, "角色验证失败: "+err.Error())
+			res.ErrInternalServer.ThrowWithMessage(c, "角色获取失败")
+			return
+		}
+
+		// 检查用户的角色权限
+		allowed = false
+		for _, role := range roles {
+			// 验证权限
+			roleAllowed, err := rbacService.Enforce(role, resource, action)
+			if err != nil {
+				res.ErrInternalServer.ThrowWithMessage(c, "权限验证失败")
+				return
+			}
+			if roleAllowed {
+				allowed = true
+				break
+			}
+		}
+
+		// 如果角色没有权限，检查用户个人权限
+		if !allowed {
+			allowed, err = rbacService.Enforce(rbac.GetUserID(userID.(uint)), resource, action)
+			if err != nil {
+				res.ErrInternalServer.ThrowWithMessage(c, "权限验证失败")
+				return
+			}
+		}
+
+		if !allowed {
+			res.ErrForbidden.ThrowWithMessage(c, "权限不足")
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// RoleMiddleware 基于角色的权限中间件
+func RoleMiddleware(rbacService *rbac.RBACService, requiredRole string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 从上下文中获取用户信息
+		userID, exists := c.Get("user_id")
+		if !exists {
+			res.ErrUnauthorized.ThrowWithMessage(c, "用户未认证")
+			return
+		}
+
+		// 首先检查用户是否具有super_admin权限（通过Casbin策略验证）
+		allowed, err := rbacService.Enforce(rbac.GetUserID(userID.(uint)), "*", "*")
+		if err != nil {
+			res.ErrInternalServer.ThrowWithMessage(c, "权限验证失败")
+			return
+		}
+
+		// 如果用户具有super_admin权限，允许访问
+		if allowed {
+			c.Next()
+			return
+		}
+
+		// 获取用户的角色
+		roles, err := rbacService.GetRolesForUser(rbac.GetUserID(userID.(uint)))
+		if err != nil {
+			res.ErrInternalServer.ThrowWithMessage(c, "角色获取失败")
 			return
 		}
 
@@ -70,9 +151,55 @@ func RoleMiddleware(rbacService *rbac.RBACService, requiredRole string) gin.Hand
 		}
 
 		if !hasRole {
-			res.ErrForbidden.ThrowWithMessage(c, "角色验证失败，需要角色: "+requiredRole)
+			res.ErrForbidden.ThrowWithMessage(c, "权限不足")
+			return
+		}
 
-			c.Abort()
+		c.Next()
+	}
+}
+
+// DepartmentMiddleware 基于部门的权限中间件
+func DepartmentMiddleware(rbacService *rbac.RBACService, requiredDepartment string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 从上下文中获取用户信息
+		userID, exists := c.Get("user_id")
+		if !exists {
+			res.ErrUnauthorized.ThrowWithMessage(c, "用户未认证")
+			return
+		}
+
+		// 首先检查用户是否具有super_admin权限（通过Casbin策略验证）
+		allowed, err := rbacService.Enforce(rbac.GetUserID(userID.(uint)), "*", "*")
+		if err != nil {
+			res.ErrInternalServer.ThrowWithMessage(c, "权限验证失败")
+			return
+		}
+
+		// 如果用户具有super_admin权限，允许访问
+		if allowed {
+			c.Next()
+			return
+		}
+
+		// 获取用户的部门
+		departments, err := rbacService.GetDepartmentsForUser(rbac.GetUserID(userID.(uint)))
+		if err != nil {
+			res.ErrInternalServer.ThrowWithMessage(c, "部门获取失败")
+			return
+		}
+
+		// 检查用户是否属于所需部门
+		inDepartment := false
+		for _, department := range departments {
+			if department == requiredDepartment {
+				inDepartment = true
+				break
+			}
+		}
+
+		if !inDepartment {
+			res.ErrForbidden.ThrowWithMessage(c, "权限不足")
 			return
 		}
 

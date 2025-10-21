@@ -65,6 +65,11 @@ func main() {
 		// 添加一些默认策略示例
 		rbacService.AddPolicy("admin", "/users/*", "*")
 		rbacService.AddPolicy("user", "/users/:id", "GET")
+
+		// 添加super_admin角色，允许访问所有资源
+		rbacService.AddPolicy("super_admin", "*", "*")
+
+		// 为用户分配角色示例
 		rbacService.AddRoleForUser("1", "admin")
 		rbacService.SavePolicy()
 
@@ -88,6 +93,7 @@ func main() {
 	routerManager.RegisterRouter(routes.NewTestRouter())
 	routerManager.RegisterRouter(routes.NewUserRouter())                 // 注册用户路由
 	routerManager.RegisterRouter(routes.NewRBACRouter(rbacService))      // 注册RBAC路由
+	routerManager.RegisterRouter(routes.NewDepartmentRouter())           // 注册部门路由
 	routerManager.RegisterRouter(routes.NewProtectedRouter(rbacService)) // 注册受保护路由
 	routerManager.SetupRoutes(r)
 

@@ -18,7 +18,8 @@ func AutoMigrate() {
 	// 注意：Casbin 使用自己的表来管理用户-角色关系和角色-权限关系
 	err := DB.AutoMigrate(
 		&models.User{},
-		&rbac.Role{}, // 只保留角色表用于业务逻辑，权限关系由Casbin管理
+		&rbac.Role{},       // 角色表
+		&rbac.Department{}, // 部门表
 	)
 
 	if err != nil {

@@ -1,9 +1,8 @@
-# WPS Callback 服务配置文件
 # 支持动态配置，修改后会自动重新加载
 
 # 服务器配置
 server:
-  port: "7070" # 服务端口
+  port: "7071" # 服务端口
   host: "0.0.0.0" # 监听地址
   environment: "development" # 环境: development, production, test
   timeout: "30s" # 请求超时时间

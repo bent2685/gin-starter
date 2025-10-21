@@ -37,6 +37,14 @@ func (pr *ProtectedRouter) RegisterRoutes(router *gin.RouterGroup) {
 		adminGroup.GET("/users", pr.getUsers)
 		adminGroup.DELETE("/users/:id", pr.deleteUser)
 	}
+
+	// 部门路由组，需要认证和特定部门权限
+	departmentGroup := router.Group("/department")
+	departmentGroup.Use(middleware.AuthMiddleware())                           // 使用认证中间件
+	departmentGroup.Use(middleware.DepartmentMiddleware(pr.rbacService, "IT")) // 使用部门中间件
+	{
+		departmentGroup.GET("/resources", pr.getDepartmentResources)
+	}
 }
 
 // getProtectedData 获取受保护的数据
@@ -92,6 +100,22 @@ func (pr *ProtectedRouter) deleteUser(c *gin.Context) {
 	data := map[string]interface{}{
 		"message": "用户删除成功",
 		"user_id": userID,
+	}
+
+	res.Success(c, data)
+}
+
+// getDepartmentResources 获取部门资源（仅IT部门）
+func (pr *ProtectedRouter) getDepartmentResources(c *gin.Context) {
+	// 从上下文中获取用户信息
+	userID := c.MustGet("user_id").(uint)
+	username := c.MustGet("username").(string)
+
+	data := map[string]interface{}{
+		"message":   "IT部门资源访问成功",
+		"user_id":   userID,
+		"username":  username,
+		"resources": []string{"server1", "server2", "database1"},
 	}
 
 	res.Success(c, data)
