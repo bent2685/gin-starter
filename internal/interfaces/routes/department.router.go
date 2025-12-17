@@ -6,20 +6,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type DepartmentRouter struct{}
+type DepartmentRouter struct {
+	deptHandler handlers.DepartmentHandler
+}
 
 func NewDepartmentRouter() *DepartmentRouter {
-	return &DepartmentRouter{}
+	return &DepartmentRouter{
+		deptHandler: *handlers.NewDepartmentHandler(),
+	}
 }
 
 func (dr *DepartmentRouter) RegisterRoutes(router *gin.RouterGroup) {
 	departmentGroup := router.Group("/departments")
 	{
-		departmentGroup.POST("", handlers.CreateDepartment)
-		departmentGroup.GET("", handlers.GetAllDepartments)
-		departmentGroup.GET("/:id", handlers.GetDepartment)
-		departmentGroup.PUT("/:id", handlers.UpdateDepartment)
-		departmentGroup.DELETE("/:id", handlers.DeleteDepartment)
-		departmentGroup.GET("/tree", handlers.GetDepartmentTree)
+		departmentGroup.POST("", dr.deptHandler.CreateDepartment)
+		departmentGroup.GET("", dr.deptHandler.GetAllDepartments)
+		departmentGroup.GET("/:id", dr.deptHandler.GetDepartment)
+		departmentGroup.PUT("/:id", dr.deptHandler.UpdateDepartment)
+		departmentGroup.DELETE("/:id", dr.deptHandler.DeleteDepartment)
+		departmentGroup.GET("/tree", dr.deptHandler.GetDepartmentTree)
 	}
 }

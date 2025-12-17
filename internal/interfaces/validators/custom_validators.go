@@ -1,11 +1,36 @@
 package validators
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
+
+// fieldNameMap 字段名称中英文映射
+var fieldNameMap = map[string]string{
+	"Username":    "用户名",
+	"Password":    "密码",
+	"Email":       "邮箱",
+	"Name":        "名称",
+	"Description": "描述",
+	"ParentID":    "父级ID",
+	"UserID":      "用户ID",
+	"Role":        "角色",
+	"Department":  "部门",
+	"Sub":         "主体",
+	"Obj":         "对象",
+	"Act":         "操作",
+}
+
+// getFieldName 获取字段中文名称
+func getFieldName(fieldName string) string {
+	if chineseName, exists := fieldNameMap[fieldName]; exists {
+		return chineseName
+	}
+	return fieldName
+}
 
 // RegisterCustomValidators 注册自定义验证器
 func RegisterCustomValidators() {
@@ -13,6 +38,15 @@ func RegisterCustomValidators() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		// 注册自定义验证器
 		v.RegisterValidation("username", validateUsername)
+
+		// 注册自定义验证错误消息翻译器
+		v.RegisterTagNameFunc(func(fld reflect.StructField) string {
+			name := fld.Tag.Get("json")
+			if name == "" {
+				name = fld.Name
+			}
+			return name
+		})
 	}
 }
 
@@ -46,7 +80,7 @@ func validateUsername(fl validator.FieldLevel) bool {
 }
 
 // ValidateStruct 验证结构体
-func ValidateStruct(s interface{}) error {
+func ValidateStruct(s any) error {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		return v.Struct(s)
 	}
@@ -67,18 +101,20 @@ func GetValidationError(err error) string {
 
 // formatValidationError 格式化验证错误信息
 func formatValidationError(fe validator.FieldError) string {
+	fieldName := getFieldName(fe.Field())
+
 	switch fe.Tag() {
 	case "required":
-		return fe.Field() + " 为必填字段"
+		return fieldName + "为必填字段"
 	case "email":
-		return fe.Field() + " 必须是有效的邮箱地址"
+		return fieldName + "必须是有效的邮箱地址"
 	case "min":
-		return fe.Field() + " 长度不能少于 " + fe.Param() + " 个字符"
+		return fieldName + "长度不能少于" + fe.Param() + "个字符"
 	case "max":
-		return fe.Field() + " 长度不能超过 " + fe.Param() + " 个字符"
+		return fieldName + "长度不能超过" + fe.Param() + "个字符"
 	case "username":
-		return fe.Field() + " 必须是3-50个字符，只能包含字母、数字、下划线和连字符，且不能以下划线或连字符开头或结尾"
+		return fieldName + "必须是3-50个字符，只能包含字母、数字、下划线和连字符，且不能以下划线或连字符开头或结尾"
 	default:
-		return fe.Field() + " 格式不正确"
+		return fieldName + "格式不正确"
 	}
 }

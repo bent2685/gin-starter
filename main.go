@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gin-starter/config"
+	_ "gin-starter/docs"
 	"gin-starter/internal/application/services/rbac"
 	"gin-starter/internal/infra/database"
 	"gin-starter/internal/infra/ofs"
@@ -17,6 +18,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// @title gin-starter api docs
+// @version 1.0
+// @description gin-starter api docs
+// @host localhost:7071
+// @BasePath /
 func main() {
 	// 检查是否有迁移参数
 	args := os.Args[1:]
@@ -88,7 +94,7 @@ func main() {
 		log.Fatal("服务器启动失败:", err)
 	}
 
-	utils.Log.WithFields(map[string]interface{}{
+	utils.Log.WithFields(map[string]any{
 		"addr": addr,
 	}).Info("服务器配置信息")
 

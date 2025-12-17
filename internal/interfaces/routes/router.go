@@ -2,6 +2,8 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // Router 路由管理接口
@@ -30,6 +32,17 @@ func (rm *RouterManager) RegisterRouter(router Router) {
 func (rm *RouterManager) SetupRoutes(engine *gin.Engine) {
 	// API版本分组
 	v1 := engine.Group("")
+
+	// 静态文件服务 - 提供整个docs目录
+	engine.Static("/docs", "docs")
+
+	// Swagger endpoint
+	v1.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// Serve swagger.json from docs directory
+	v1.GET("/swagger.json", func(c *gin.Context) {
+		c.File("docs/swagger.json")
+	})
 
 	// 注册所有路由
 	for _, router := range rm.routers {

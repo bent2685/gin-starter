@@ -53,3 +53,6 @@ config.local.yml
 # Specific to this project
 tmp/build-errors.log
 tmp/main
+
+# Documentation
+docs/
