@@ -8,13 +8,13 @@ import (
 
 // Response 通用响应结构
 type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // Success 成功响应
-func Success(c *gin.Context, data interface{}) {
+func Success(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Response{
 		Code:    20000,
 		Message: "success",
@@ -23,7 +23,7 @@ func Success(c *gin.Context, data interface{}) {
 }
 
 // SuccessWithMessage 带自定义消息的成功响应
-func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
+func SuccessWithMessage(c *gin.Context, message string, data any) {
 	c.JSON(http.StatusOK, Response{
 		Code:    20000,
 		Message: message,

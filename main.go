@@ -11,6 +11,7 @@ import (
 	"gin-starter/pkg/utils"
 	"log"
 	"os"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,13 +19,7 @@ import (
 func main() {
 	// 检查是否有迁移参数
 	args := os.Args[1:]
-	runMigration := false
-	for _, arg := range args {
-		if arg == "migrate" {
-			runMigration = true
-			break
-		}
-	}
+	runMigration := slices.Contains(args, "migrate")
 
 	// 初始化配置
 	config.Init("")
@@ -51,50 +46,38 @@ func main() {
 	database.InitDatabase()
 	defer database.Close()
 
-	// 如果是迁移模式，执行迁移后退出
 	if runMigration {
 		utils.Log.Info("执行数据库迁移...")
 		database.AutoMigrate()
 
-		// 初始化RBAC服务（仅用于添加示例数据）
-		rbacService, err := rbac.NewRBACService()
-		if err != nil {
+		if err := rbac.InitRBAC(); err != nil {
 			utils.Log.Fatalf("RBAC服务初始化失败: %v", err)
 		}
 
-		// 添加一些默认策略示例
-		rbacService.AddPolicy("admin", "/users/*", "*")
-		rbacService.AddPolicy("user", "/users/:id", "GET")
-
-		// 添加super_admin角色，允许访问所有资源
-		rbacService.AddPolicy("super_admin", "*", "*")
-
-		// 为用户分配角色示例
-		rbacService.AddRoleForUser("1", "admin")
-		rbacService.SavePolicy()
+		rbac.AddPolicy("admin", "/users/*", "*")
+		rbac.AddPolicy("user", "/users/:id", "GET")
+		rbac.AddPolicy("super_admin", "*", "*")
+		rbac.AddRoleForUser("1", "admin")
+		rbac.SavePolicy()
 
 		utils.Log.Info("数据库迁移完成")
 		return
 	}
 
-	// 初始化RBAC服务
-	rbacService, err := rbac.NewRBACService()
-	if err != nil {
+	if err := rbac.InitRBAC(); err != nil {
 		utils.Log.Fatalf("RBAC服务初始化失败: %v", err)
 	}
 
-	// 创建Gin引擎
 	r := gin.New()
-	// 注册全局中间件
 	r.Use(middleware.RecoveryMiddleware())
 	r.Use(middleware.RequestIDMiddleware())
 
 	routerManager := routes.NewRouterManager()
 	routerManager.RegisterRouter(routes.NewTestRouter())
-	routerManager.RegisterRouter(routes.NewUserRouter())                 // 注册用户路由
-	routerManager.RegisterRouter(routes.NewRBACRouter(rbacService))      // 注册RBAC路由
-	routerManager.RegisterRouter(routes.NewDepartmentRouter())           // 注册部门路由
-	routerManager.RegisterRouter(routes.NewProtectedRouter(rbacService)) // 注册受保护路由
+	routerManager.RegisterRouter(routes.NewUserRouter())
+	routerManager.RegisterRouter(routes.NewRBACRouter())
+	routerManager.RegisterRouter(routes.NewDepartmentRouter())
+	routerManager.RegisterRouter(routes.NewProtectedRouter())
 	routerManager.SetupRoutes(r)
 
 	addr := fmt.Sprintf("%s:%s", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
