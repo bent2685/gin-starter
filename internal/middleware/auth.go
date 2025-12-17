@@ -4,6 +4,7 @@ import (
 	"gin-starter/internal/application/services/rbac"
 	"gin-starter/pkg/utils/jwt"
 	"gin-starter/pkg/utils/res"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -44,56 +45,7 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func AuthorizationMiddleware(rbacService *rbac.RBACService) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, exists := c.Get("user_id")
-		if !exists {
-			res.ErrUnauthorized.ThrowWithMessage(c, "用户未认证")
-			return
-		}
-		resource := c.Request.URL.Path
-		action := c.Request.Method
-		allowed, err := rbac.Enforce(rbac.GetUserID(userID.(uint)), "*", "*")
-		if err != nil {
-			res.ErrInternalServer.ThrowWithMessage(c, "权限验证失败")
-			return
-		}
-		if allowed {
-			c.Next()
-			return
-		}
-		roles, err := rbac.GetRolesForUser(rbac.GetUserID(userID.(uint)))
-		if err != nil {
-			res.ErrInternalServer.ThrowWithMessage(c, "角色获取失败")
-			return
-		}
-		allowed = false
-		for _, role := range roles {
-			roleAllowed, err := rbac.Enforce(role, resource, action)
-			if err != nil {
-				res.ErrInternalServer.ThrowWithMessage(c, "权限验证失败")
-				return
-			}
-			if roleAllowed {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			allowed, err = rbac.Enforce(rbac.GetUserID(userID.(uint)), resource, action)
-			if err != nil {
-				res.ErrInternalServer.ThrowWithMessage(c, "权限验证失败")
-				return
-			}
-		}
-		if !allowed {
-			res.ErrForbidden.ThrowWithMessage(c, "权限不足")
-			return
-		}
-		c.Next()
-	}
-}
-
+// RoleMiddleware 验证用户身份中间件
 func RoleMiddleware(rbacService *rbac.RBACService, requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
@@ -115,14 +67,7 @@ func RoleMiddleware(rbacService *rbac.RBACService, requiredRole string) gin.Hand
 			res.ErrInternalServer.ThrowWithMessage(c, "角色获取失败")
 			return
 		}
-		hasRole := false
-		for _, role := range roles {
-			if role == requiredRole {
-				hasRole = true
-				break
-			}
-		}
-		if !hasRole {
+		if !slices.Contains(roles, requiredRole) {
 			res.ErrForbidden.ThrowWithMessage(c, "权限不足")
 			return
 		}
@@ -130,6 +75,7 @@ func RoleMiddleware(rbacService *rbac.RBACService, requiredRole string) gin.Hand
 	}
 }
 
+// DepartmentMiddleware 验证用户部门中间件
 func DepartmentMiddleware(rbacService *rbac.RBACService, requiredDepartment string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
@@ -151,14 +97,7 @@ func DepartmentMiddleware(rbacService *rbac.RBACService, requiredDepartment stri
 			res.ErrInternalServer.ThrowWithMessage(c, "部门获取失败")
 			return
 		}
-		inDepartment := false
-		for _, department := range departments {
-			if department == requiredDepartment {
-				inDepartment = true
-				break
-			}
-		}
-		if !inDepartment {
+		if !slices.Contains(departments, requiredDepartment) {
 			res.ErrForbidden.ThrowWithMessage(c, "权限不足")
 			return
 		}

@@ -16,6 +16,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Log      LogConfig      `mapstructure:"log"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
+	S3       S3Config       `mapstructure:"s3"`
 }
 
 // ServerConfig 服务器配置
@@ -48,6 +49,14 @@ type LogConfig struct {
 	Compress        bool   `mapstructure:"compress"`
 	EnableColors    bool   `mapstructure:"enable_colors"`
 	TimestampFormat string `mapstructure:"timestamp_format"`
+}
+
+// S3Config S3配置
+type S3Config struct {
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
+	Region          string `mapstructure:"region"`
+	Endpoint        string `mapstructure:"endpoint"`
 }
 
 // JWTConfig JWT配置
@@ -158,6 +167,12 @@ func bindEnvs() {
 
 	// JWT配置环境变量绑定
 	viper.BindEnv("jwt.secret", "STARTER_JWT_SECRET")
+
+	// S3配置环境变量绑定
+	viper.BindEnv("s3.access_key_id", "STARTER_S3_ACCESS_KEY_ID")
+	viper.BindEnv("s3.secret_access_key", "STARTER_S3_SECRET_ACCESS_KEY")
+	viper.BindEnv("s3.region", "STARTER_S3_REGION")
+	viper.BindEnv("s3.endpoint", "STARTER_S3_ENDPOINT")
 }
 
 // GetJWTSecret 获取JWT密钥

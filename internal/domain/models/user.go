@@ -13,7 +13,7 @@ type User struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	Username string `gorm:"type:varchar(50);uniqueIndex;not null" json:"username" binding:"required,min=3,max=50"`
 	Email    string `gorm:"type:varchar(100);uniqueIndex;not null" json:"email" binding:"required,email"`

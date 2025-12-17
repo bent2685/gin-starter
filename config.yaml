@@ -31,6 +31,12 @@ database:
   sslmode: "disable" # SSL模式
   timezone: "Asia/Shanghai" # 时区
 
+s3:
+  access_key_id: "rustfsadmin"
+  secret_access_key: "rustfsadmin"
+  region: "none"
+  endpoint: "http://192.168.50.74:17000"
+
 # JWT配置
 jwt:
   secret: "gin-starter-secret-key" # JWT密钥，请在生产环境中使用强密码

@@ -5,6 +5,7 @@ import (
 	"gin-starter/config"
 	"gin-starter/internal/application/services/rbac"
 	"gin-starter/internal/infra/database"
+	"gin-starter/internal/infra/ofs"
 	"gin-starter/internal/interfaces/routes"
 	"gin-starter/internal/interfaces/validators"
 	"gin-starter/internal/middleware"
@@ -43,9 +44,10 @@ func main() {
 	utils.Log.Info("服务启动中...")
 
 	// 初始化数据库
-	database.InitDatabase()
 	defer database.Close()
-
+	database.InitDatabase()
+	// 初始化s3
+	ofs.InitOfs()
 	if runMigration {
 		utils.Log.Info("执行数据库迁移...")
 		database.AutoMigrate()
